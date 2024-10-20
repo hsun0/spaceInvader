@@ -4,6 +4,57 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+class Shield {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 70;
+        this.height = 30;
+        this.blocks = [];
+        this.initBlocks();
+    }
+
+    initBlocks() {
+        const blockWidth = 10;
+        const blockHeight = 10;
+        for (let i = 0; i < this.width / blockWidth; i++) {
+            for (let j = 0; j < this.height / blockHeight; j++) {
+                this.blocks.push({
+                    x: this.x + i * blockWidth,
+                    y: this.y + j * blockHeight,
+                    width: blockWidth,
+                    height: blockHeight,
+                    destroyed: false
+                });
+            }
+        }
+    }
+
+    draw() {
+        this.blocks.forEach(block => {
+            if (!block.destroyed) {
+                ctx.fillStyle = 'green';
+                ctx.fillRect(block.x, block.y, block.width, block.height);
+            }
+        });
+    }
+
+    hitTest(bullet) {
+        let hit = false;
+        this.blocks.forEach(block => {
+            if (!block.destroyed &&
+                bullet.x < block.x + block.width &&
+                bullet.x + bullet.width > block.x &&
+                bullet.y < block.y + block.height &&
+                bullet.y + bullet.height > block.y) {
+                block.destroyed = true;
+                hit = true;  // 標記為碰撞發生
+            }
+        });
+        return hit;
+    }
+}
+
 class Player {
     constructor() {
         this.width = 50;
@@ -80,6 +131,15 @@ class Enemy {
 const player = new Player();
 const bullets = [];
 const enemies = [];
+const shields = [];
+
+const shieldCount = 5;
+const shieldSpacing = (canvas.width - shieldCount * 70) / (shieldCount + 1);
+
+for (let i = 0; i < shieldCount; i++) {
+    const x = shieldSpacing + i * (70 + shieldSpacing);
+    shields.push(new Shield(x, canvas.height - 200));
+}
 
 // 產生敵人
 for (let i = 0; i < 5; i++) {
@@ -110,17 +170,6 @@ function drawGame() {
     // 玩家更新及繪製
     player.move();
     player.draw();
-    
-    // 子彈更新及繪製
-    bullets.forEach((bullet, index) => {
-        bullet.update();
-        bullet.draw();
-        
-        // 移除超出畫面的子彈
-        if (bullet.y < 0 || bullet.y > canvas.height) {
-            bullets.splice(index, 1);
-        }
-    });
     
     // 敵人更新及繪製
     enemies.forEach((enemy, index) => {
@@ -159,6 +208,23 @@ function drawGame() {
     });
     
     bullets.forEach((bullet, index) => {
+        bullet.update();
+        bullet.draw();
+
+        let removeBullet = false;
+
+        // 檢查是否擊中防護罩
+        shields.forEach(shield => {
+            if (shield.hitTest(bullet)) {
+                removeBullet = true;
+            }
+        });
+
+        // 檢查是否超出畫面或已經擊中防護罩
+        if (bullet.y < 0 || bullet.y > canvas.height || removeBullet) {
+            bullets.splice(index, 1);
+        }  
+
         if (
             !bullet.isPlayer &&
             bullet.x < player.x + player.width &&
@@ -170,6 +236,9 @@ function drawGame() {
             gameOver();  // 當玩家被擊中時呼叫結束遊戲函數
         }
     });
+
+    // 繪製防護罩
+    shields.forEach(shield => shield.draw());
     
     requestAnimationFrame(drawGame);
 }
@@ -203,6 +272,5 @@ window.addEventListener('keyup', (e) => {
         player.movingRight = false;
     }
 });
-
 
 drawGame();
