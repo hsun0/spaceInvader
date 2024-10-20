@@ -103,30 +103,43 @@ class Bullet {
 }
 
 class Enemy {
-    constructor(x, y) {
+    constructor(x, y, row) {
         this.width = 40;
         this.height = 20;
         this.x = x;
         this.y = y;
         this.speed = 2;
         this.direction = 1;
+
+        // 根據row來設定顏色與分數
+        if (row === 0) {  // 第一層
+            this.color = 'red';
+            this.points = 50;
+        } else if (row === 1 || row === 2) {  // 第二、三層
+            this.color = 'yellow';
+            this.points = 20;
+        } else {  // 剩下的層
+            this.color = 'green';
+            this.points = 10;
+        }
     }
-    
+
     draw() {
-        ctx.fillStyle = 'green';
+        ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
     }
-    
+
     update() {
         this.x += this.speed * this.direction;
     }
-    
+
     fire(bullets) {
-        if (bullets.filter(bullet => !bullet.isPlayer).length < 5) {  // 限制敵方雷射數量不超過 3 個
+        if (bullets.filter(bullet => !bullet.isPlayer).length < 5) {  // 限制敵方雷射數量不超過 5 個
             bullets.push(new Bullet(this.x + this.width / 2 - 2.5, this.y + this.height, false));
         }
     }
 }
+
 
 const player = new Player();
 const bullets = [];
@@ -136,6 +149,14 @@ const shields = [];
 const shieldCount = 5;
 const shieldSpacing = (canvas.width - shieldCount * 70) / (shieldCount + 1);
 
+let score = 0;
+
+function drawScore() {
+    ctx.fillStyle = 'white';
+    ctx.font = '24px Arial';
+    ctx.fillText(`Score: ${score}`, 20, 30);
+}
+
 for (let i = 0; i < shieldCount; i++) {
     const x = shieldSpacing + i * (70 + shieldSpacing);
     shields.push(new Shield(x, canvas.height - 200));
@@ -144,7 +165,7 @@ for (let i = 0; i < shieldCount; i++) {
 // 產生敵人
 for (let i = 0; i < 5; i++) {
     for (let j = 0; j < 10; j++) {
-        enemies.push(new Enemy(100 + j * 50, 50 + i * 40));
+        enemies.push(new Enemy(100 + j * 50, 50 + i * 40, i));
     }
 }
 
@@ -152,20 +173,45 @@ function gameOver() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
     ctx.font = '48px Arial';
-    ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
-    cancelAnimationFrame(animationId);  // 停止遊戲
+    
+    // 顯示 "Game Over"
+    const gameOverText = 'Game Over';
+    const gameOverTextWidth = ctx.measureText(gameOverText).width;
+    ctx.fillText(gameOverText, (canvas.width - gameOverTextWidth) / 2, canvas.height / 2);
+
+    // 顯示分數
+    ctx.font = '36px Arial';  // 調整字體大小
+    const scoreText = `Your Score: ${score}`;
+    const scoreTextWidth = ctx.measureText(scoreText).width;
+    ctx.fillText(scoreText, (canvas.width - scoreTextWidth) / 2, (canvas.height / 2) + 100);
+
+    cancelAnimationFrame(animationId);  // 停止遊戲迴圈
 }
 
 function victory() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
     ctx.font = '48px Arial';
-    ctx.fillText('Victory!', canvas.width / 2 - 100, canvas.height / 2);
-    cancelAnimationFrame(animationId);  // 停止遊戲
+    
+    // 顯示 "Victory!"
+    const victoryText = 'Victory!';
+    const victoryTextWidth = ctx.measureText(victoryText).width;
+    ctx.fillText(victoryText, (canvas.width - victoryTextWidth) / 2, canvas.height / 2);
+
+    // 顯示分數
+    ctx.font = '36px Arial';  // 調整字體大小
+    const scoreText = `Your Score: ${score}`;
+    const scoreTextWidth = ctx.measureText(scoreText).width;
+    ctx.fillText(scoreText, (canvas.width - scoreTextWidth) / 2, (canvas.height / 2) + 100);
+
+    cancelAnimationFrame(animationId);  // 停止遊戲迴圈
 }
 
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 繪製分數
+    drawScore();
     
     // 玩家更新及繪製
     player.move();
@@ -197,6 +243,7 @@ function drawGame() {
                 bullet.y < enemy.y + enemy.height &&
                 bullet.y + bullet.height > enemy.y
             ) {
+                score += enemy.points;  // 根據敵人的分數增加得分
                 bullets.splice(bIndex, 1);
                 enemies.splice(index, 1);
             }
