@@ -8,8 +8,8 @@ class Shield {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 140;  // 原本是 70，現在變成兩倍
-        this.height = 60;  // 原本是 30，現在變成兩倍
+        this.width = 140;
+        this.height = 60;
         this.blocks = [];
         this.initBlocks();
     }
@@ -19,18 +19,15 @@ class Shield {
         const blockHeight = 10;
         for (let i = 0; i < this.width / blockWidth; i++) {
             for (let j = 0; j < this.height / blockHeight; j++) {
-                // 計算每個方塊到防護罩中心的距離
                 const centerX = this.width / 2;
                 const centerY = this.height / 2;
                 const blockCenterX = i * blockWidth + blockWidth / 2;
                 const blockCenterY = j * blockHeight + blockHeight / 2;
                 
-                // 使用拋物線公式來創建弧形
                 const distanceFromCenter = Math.abs(blockCenterX - centerX);
-                const maxHeight = this.height * 0.8;  // 控制弧度高度
+                const maxHeight = this.height * 0.8;
                 const heightOffset = (distanceFromCenter * distanceFromCenter) / (2 * centerX);
                 
-                // 只有在弧形範圍內的方塊才會被創建
                 if (j * blockHeight < this.height - heightOffset) {
                     this.blocks.push({
                         x: this.x + i * blockWidth,
@@ -53,6 +50,7 @@ class Shield {
         });
     }
 
+    // 子彈碰撞檢測保持不變
     hitTest(bullet) {
         let hit = false;
         this.blocks.forEach(block => {
@@ -67,7 +65,21 @@ class Shield {
         });
         return hit;
     }
+
+    // 新增敵人碰撞檢測
+    checkEnemyCollision(enemy) {
+        this.blocks.forEach(block => {
+            if (!block.destroyed &&
+                enemy.x < block.x + block.width &&
+                enemy.x + enemy.width > block.x &&
+                enemy.y < block.y + block.height &&
+                enemy.y + enemy.height > block.y) {
+                block.destroyed = true;
+            }
+        });
+    }
 }
+
 
 // 修改 Player 類別，加入生命值
 class Player {
@@ -80,7 +92,7 @@ class Player {
         this.color = 'white';
         this.movingLeft = false;
         this.movingRight = false;
-        this.lives = 2; // 新增生命值屬性
+        this.lives = 3; // 新增生命值屬性
         this.isInvulnerable = false; // 新增無敵狀態
     }
     
@@ -259,7 +271,6 @@ function victory() {
     cancelAnimationFrame(animationId);  // 停止遊戲迴圈
 }
 
-// 修改碰撞檢測部分
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -272,12 +283,28 @@ function drawGame() {
         enemy.update();
         enemy.draw();
         
+        // 檢查敵人是否碰到螢幕邊緣
         if (enemy.x > canvas.width - enemy.width || enemy.x < 0) {
             enemies.forEach(e => {
                 e.direction *= -1;
                 e.y += 20;
             });
         }
+        
+        // 檢查敵人是否到達底部或碰到玩家
+        if (enemy.y + enemy.height >= canvas.height || 
+            (enemy.x < player.x + player.width &&
+             enemy.x + enemy.width > player.x &&
+             enemy.y < player.y + player.height &&
+             enemy.y + enemy.height > player.y)) {
+            gameOver();
+            return;
+        }
+
+        // 檢查敵人是否碰到防護罩
+        shields.forEach(shield => {
+            shield.checkEnemyCollision(enemy);
+        });
         
         if (Math.random() < 0.01) {
             enemy.fire(bullets);
@@ -296,11 +323,12 @@ function drawGame() {
                 enemies.splice(index, 1);
             }
         });
-
-        if (enemies.length === 0) {
-            victory();
-        }
     });
+
+    if (enemies.length === 0) {
+        victory();
+        return;
+    }
     
     bullets.forEach((bullet, index) => {
         bullet.update();
@@ -325,9 +353,10 @@ function drawGame() {
             bullet.y < player.y + player.height &&
             bullet.y + bullet.height > player.y
         ) {
-            bullets.splice(index, 1); // 移除子彈
-            if (player.hit()) { // 如果返回 true 表示玩家已死亡
+            bullets.splice(index, 1);
+            if (player.hit()) {
                 gameOver();
+                return;
             }
         }
     });
