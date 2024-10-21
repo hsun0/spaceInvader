@@ -69,6 +69,7 @@ class Shield {
     }
 }
 
+// 修改 Player 類別，加入生命值
 class Player {
     constructor() {
         this.width = 50;
@@ -79,11 +80,21 @@ class Player {
         this.color = 'white';
         this.movingLeft = false;
         this.movingRight = false;
+        this.lives = 2; // 新增生命值屬性
+        this.isInvulnerable = false; // 新增無敵狀態
     }
     
     draw() {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // 在無敵狀態下閃爍效果
+        if (!this.isInvulnerable || Math.floor(Date.now() / 100) % 2) {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+        
+        // 在右下角顯示生命值
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Arial';
+        ctx.fillText(`Lives: ${this.lives}`, canvas.width - 100, canvas.height - 20);
     }
     
     move() {
@@ -93,6 +104,30 @@ class Player {
         if (this.movingRight) {
             this.x = Math.min(canvas.width - this.width, this.x + this.speed);
         }
+    }
+
+    // 新增重生方法
+    respawn() {
+        this.x = canvas.width / 2 - this.width / 2;
+        this.y = canvas.height - this.height - 10;
+        this.isInvulnerable = true;
+        // 2秒無敵時間
+        setTimeout(() => {
+            this.isInvulnerable = false;
+        }, 2000);
+    }
+
+    // 新增受傷方法
+    hit() {
+        if (!this.isInvulnerable) {
+            this.lives--;
+            if (this.lives > 0) {
+                this.respawn();
+                return false; // 還沒死亡
+            }
+            return true; // 死亡
+        }
+        return false;
     }
 }
 
@@ -224,34 +259,30 @@ function victory() {
     cancelAnimationFrame(animationId);  // 停止遊戲迴圈
 }
 
+// 修改碰撞檢測部分
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 繪製分數
     drawScore();
     
-    // 玩家更新及繪製
     player.move();
     player.draw();
     
-    // 敵人更新及繪製
     enemies.forEach((enemy, index) => {
         enemy.update();
         enemy.draw();
         
         if (enemy.x > canvas.width - enemy.width || enemy.x < 0) {
             enemies.forEach(e => {
-                e.direction *= -1;  // 換方向
-                e.y += 20;  // 向下移動
+                e.direction *= -1;
+                e.y += 20;
             });
         }
         
-        // 隨機發射敵人雷射
         if (Math.random() < 0.01) {
             enemy.fire(bullets);
         }
         
-        // 檢查玩家子彈碰撞敵人
         bullets.forEach((bullet, bIndex) => {
             if (
                 bullet.isPlayer &&
@@ -260,7 +291,7 @@ function drawGame() {
                 bullet.y < enemy.y + enemy.height &&
                 bullet.y + bullet.height > enemy.y
             ) {
-                score += enemy.points;  // 根據敵人的分數增加得分
+                score += enemy.points;
                 bullets.splice(bIndex, 1);
                 enemies.splice(index, 1);
             }
@@ -277,14 +308,12 @@ function drawGame() {
 
         let removeBullet = false;
 
-        // 檢查是否擊中防護罩
         shields.forEach(shield => {
             if (shield.hitTest(bullet)) {
                 removeBullet = true;
             }
         });
 
-        // 檢查是否超出畫面或已經擊中防護罩
         if (bullet.y < 0 || bullet.y > canvas.height || removeBullet) {
             bullets.splice(index, 1);
         }  
@@ -296,12 +325,13 @@ function drawGame() {
             bullet.y < player.y + player.height &&
             bullet.y + bullet.height > player.y
         ) {
-            console.log('Player hit!');
-            gameOver();  // 當玩家被擊中時呼叫結束遊戲函數
+            bullets.splice(index, 1); // 移除子彈
+            if (player.hit()) { // 如果返回 true 表示玩家已死亡
+                gameOver();
+            }
         }
     });
 
-    // 繪製防護罩
     shields.forEach(shield => shield.draw());
     
     requestAnimationFrame(drawGame);
