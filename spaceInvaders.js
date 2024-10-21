@@ -8,8 +8,8 @@ class Shield {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 70;
-        this.height = 30;
+        this.width = 140;  // 原本是 70，現在變成兩倍
+        this.height = 60;  // 原本是 30，現在變成兩倍
         this.blocks = [];
         this.initBlocks();
     }
@@ -19,13 +19,27 @@ class Shield {
         const blockHeight = 10;
         for (let i = 0; i < this.width / blockWidth; i++) {
             for (let j = 0; j < this.height / blockHeight; j++) {
-                this.blocks.push({
-                    x: this.x + i * blockWidth,
-                    y: this.y + j * blockHeight,
-                    width: blockWidth,
-                    height: blockHeight,
-                    destroyed: false
-                });
+                // 計算每個方塊到防護罩中心的距離
+                const centerX = this.width / 2;
+                const centerY = this.height / 2;
+                const blockCenterX = i * blockWidth + blockWidth / 2;
+                const blockCenterY = j * blockHeight + blockHeight / 2;
+                
+                // 使用拋物線公式來創建弧形
+                const distanceFromCenter = Math.abs(blockCenterX - centerX);
+                const maxHeight = this.height * 0.8;  // 控制弧度高度
+                const heightOffset = (distanceFromCenter * distanceFromCenter) / (2 * centerX);
+                
+                // 只有在弧形範圍內的方塊才會被創建
+                if (j * blockHeight < this.height - heightOffset) {
+                    this.blocks.push({
+                        x: this.x + i * blockWidth,
+                        y: this.y + j * blockHeight,
+                        width: blockWidth,
+                        height: blockHeight,
+                        destroyed: false
+                    });
+                }
             }
         }
     }
@@ -48,7 +62,7 @@ class Shield {
                 bullet.y < block.y + block.height &&
                 bullet.y + bullet.height > block.y) {
                 block.destroyed = true;
-                hit = true;  // 標記為碰撞發生
+                hit = true;
             }
         });
         return hit;
@@ -93,7 +107,7 @@ class Bullet {
     }
     
     draw() {
-        ctx.fillStyle = this.isPlayer ? 'red' : 'blue';
+        ctx.fillStyle = this.isPlayer ? 'blue' : 'red';
         ctx.fillRect(this.x, this.y, this.width, this.height);
     }
     
@@ -113,13 +127,13 @@ class Enemy {
 
         // 根據row來設定顏色與分數
         if (row === 0) {  // 第一層
-            this.color = 'red';
+            this.color = 'purple';
             this.points = 50;
         } else if (row === 1 || row === 2) {  // 第二、三層
             this.color = 'yellow';
             this.points = 20;
         } else {  // 剩下的層
-            this.color = 'green';
+            this.color = 'white';
             this.points = 10;
         }
     }
@@ -146,8 +160,10 @@ const bullets = [];
 const enemies = [];
 const shields = [];
 
-const shieldCount = 5;
-const shieldSpacing = (canvas.width - shieldCount * 70) / (shieldCount + 1);
+// 修改防護罩的初始化部分
+const shieldCount = 3;  // 改為3個防護罩
+const shieldSpacing = (canvas.width - shieldCount * 140) / (shieldCount + 1);  // 注意這裡的140是新的寬度
+
 
 let score = 0;
 
@@ -157,8 +173,9 @@ function drawScore() {
     ctx.fillText(`Score: ${score}`, 20, 30);
 }
 
+// 重新創建防護罩
 for (let i = 0; i < shieldCount; i++) {
-    const x = shieldSpacing + i * (70 + shieldSpacing);
+    const x = shieldSpacing + i * (140 + shieldSpacing);
     shields.push(new Shield(x, canvas.height - 200));
 }
 
